@@ -6,42 +6,45 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*", // Change this to your React app URL in prod
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
 
-  // notify other peers of the new user
-  socket.broadcast.emit("new-peer", { id: socket.id });
+  socket.on("join-room", ({ roomId }) => {
+    socket.join(roomId);
+    console.log(`${socket.id} joined room ${roomId}`);
 
-  // relay offer
+    // Notify others in the room
+    socket.to(roomId).emit("new-peer", { id: socket.id });
+  });
+
   socket.on("offer", ({ offer, to }) => {
     io.to(to).emit("offer", { offer, from: socket.id });
   });
 
-  // relay answer
   socket.on("answer", ({ answer, to }) => {
     io.to(to).emit("answer", { answer, from: socket.id });
   });
 
-  // relay ICE candidates
   socket.on("candidate", ({ candidate, to }) => {
     io.to(to).emit("candidate", { candidate, from: socket.id });
   });
 
-  // renegotiation trigger (when someone switches camera ↔ screen)
   socket.on("renegotiate", ({ to }) => {
     io.to(to).emit("renegotiate", { from: socket.id });
   });
 
-  // cleanup
+  socket.on("disconnecting", () => {
+    const rooms = [...socket.rooms].filter(r => r !== socket.id);
+    rooms.forEach(roomId => {
+      socket.to(roomId).emit("peer-left", { id: socket.id });
+    });
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
-    io.emit("peer-left", { id: socket.id });
   });
 });
 
