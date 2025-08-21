@@ -2,52 +2,59 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: { origin: "*" },
 });
 
 io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
+  console.log("socket connected:", socket.id);
 
-  socket.on("join-room", ({ roomId }) => {
+  socket.on("join-room", (roomId) => {
     socket.join(roomId);
     console.log(`${socket.id} joined room ${roomId}`);
 
-    // Notify others in the room
-    socket.to(roomId).emit("new-peer", { id: socket.id });
+    // Send existing participants to the new joiner
+    const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+    const others = clients.filter((id) => id !== socket.id);
+    socket.emit("all-users", { users: others });
+
+    // Notify others that a new user joined
+    socket.to(roomId).emit("user-joined", { id: socket.id });
   });
 
-  socket.on("offer", ({ offer, to }) => {
-    io.to(to).emit("offer", { offer, from: socket.id });
+  socket.on("offer", ({ to, sdp, streamType, roomId }) => {
+    io.to(to).emit("offer", { from: socket.id, sdp, streamType });
   });
 
-  socket.on("answer", ({ answer, to }) => {
-    io.to(to).emit("answer", { answer, from: socket.id });
+  socket.on("answer", ({ to, sdp, streamType }) => {
+    io.to(to).emit("answer", { from: socket.id, sdp, streamType });
   });
 
-  socket.on("candidate", ({ candidate, to }) => {
-    io.to(to).emit("candidate", { candidate, from: socket.id });
+  socket.on("candidate", ({ to, candidate, streamType }) => {
+    io.to(to).emit("candidate", { from: socket.id, candidate, streamType });
   });
 
-  socket.on("renegotiate", ({ to }) => {
-    io.to(to).emit("renegotiate", { from: socket.id });
-  });
-
-  socket.on("disconnecting", () => {
-    const rooms = [...socket.rooms].filter(r => r !== socket.id);
-    rooms.forEach(roomId => {
-      socket.to(roomId).emit("peer-left", { id: socket.id });
-    });
+  socket.on("leave-room", (roomId) => {
+    socket.leave(roomId);
+    socket.to(roomId).emit("user-left", { id: socket.id });
+    console.log(`${socket.id} left room ${roomId}`);
   });
 
   socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
+    // broadcast user-left to all rooms this socket was in
+    for (const roomId of socket.rooms) {
+      if (roomId === socket.id) continue;
+      socket.to(roomId).emit("user-left", { id: socket.id });
+    }
+    console.log("socket disconnected:", socket.id);
   });
 });
 
-server.listen(5000, () => {
-  console.log("Signaling server running on http://localhost:5000");
-});
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Signaling server running on :${PORT}`));
