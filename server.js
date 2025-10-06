@@ -19,10 +19,10 @@ rooms = {
   }
 }
 */
-console.log("peter");
+
 io.on("connection", (socket) => {
   console.log("socket connected:", socket.id);
-
+  console.log("peter");
   // -------- JOIN ROOM --------
   socket.on("join-room", (roomId) => {
     if (!roomId || roomId.trim() === "") return;
