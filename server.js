@@ -19,7 +19,7 @@ rooms = {
   }
 }
 */
-console.log("santhosh");
+console.log("peter");
 io.on("connection", (socket) => {
   console.log("socket connected:", socket.id);
 
