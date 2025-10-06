@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Node.js CI and Deploy to Render
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     strategy:
@@ -27,3 +27,11 @@ jobs:
 
     - name: Run tests
       run: npm test
+
+    - name: Trigger Render deploy
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      run: |
+        curl -X POST "https://api.render.com/deploy/srv-d2dhfm8gjchc73dohnr0" \
+        -H "Accept: application/json" \
+        -H "Authorization: Bearer $RENDER_API_KEY"
