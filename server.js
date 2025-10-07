@@ -26,7 +26,7 @@ io.on("connection", (socket) => {
   // -------- JOIN ROOM --------
   socket.on("join-room", (roomId) => {
     if (!roomId || roomId.trim() === "") return;
-  console.log("santhosh");
+  console.log("peter");
     socket.join(roomId);
     console.log(`${socket.id} joined room ${roomId}`);
 
@@ -116,5 +116,6 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`Signaling server running on :${PORT}`)
 );
+
 
 
