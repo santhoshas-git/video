@@ -32,14 +32,25 @@ io.on("connection", (socket) => {
 
     if (!rooms[roomId]) rooms[roomId] = { offers: [] };
 
-    // Send existing users
+    // Send existing users and their active streams
     const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
     const others = clients.filter((id) => id !== socket.id);
-    socket.emit("all-users", { users: others });
+
+    // Find which users have active offers (camera/screen)
+    const activeStreams = {};
+    rooms[roomId].offers.forEach((offer) => {
+      if (!activeStreams[offer.from]) activeStreams[offer.from] = [];
+      activeStreams[offer.from].push(offer.streamType);
+    });
+
+    socket.emit("all-users", { 
+      users: others, 
+      activeStreams // { userId: [streamType, ...] }
+    });
 
     // 🔑 Replay all stored offers (camera/screen) to the late joiner
     rooms[roomId].offers.forEach((offer) => {
-      socket.emit("offer", { ...offer, to: socket.id });
+      socket.emit("offer", offer);
     });
 
     // Notify others
@@ -48,7 +59,7 @@ io.on("connection", (socket) => {
 
   // -------- OFFER --------
   socket.on("offer", ({ to, sdp, streamType, roomId }) => {
-    console.log(`Offer from ${socket.id} (${streamType})`);
+    console.log(`Offer received:`, { from: socket.id, to, streamType, roomId });
 
     if (!rooms[roomId]) rooms[roomId] = { offers: [] };
 
@@ -62,12 +73,10 @@ io.on("connection", (socket) => {
       rooms[roomId].offers.push({ from: socket.id, sdp, streamType });
     }
 
-    const offerPayload = { from: socket.id, sdp, streamType };
-
     if (to) {
-      io.to(to).emit("offer", { ...offerPayload, to });
+      io.to(to).emit("offer", { from: socket.id, sdp, streamType });
     } else {
-      socket.to(roomId).emit("offer", offerPayload);
+      socket.to(roomId).emit("offer", { from: socket.id, sdp, streamType });
     }
   });
 
@@ -91,9 +100,6 @@ io.on("connection", (socket) => {
       rooms[roomId].offers = rooms[roomId].offers.filter(
         (o) => o.from !== socket.id
       );
-      if (rooms[roomId].offers.length === 0) {
-        delete rooms[roomId];
-      }
     }
 
     console.log(`${socket.id} left room ${roomId}`);
@@ -109,9 +115,6 @@ io.on("connection", (socket) => {
         rooms[roomId].offers = rooms[roomId].offers.filter(
           (o) => o.from !== socket.id
         );
-        if (rooms[roomId].offers.length === 0) {
-          delete rooms[roomId];
-        }
       }
     }
     console.log("socket disconnected:", socket.id);
@@ -122,5 +125,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`Signaling server running on :${PORT}`)
 );
-
-
