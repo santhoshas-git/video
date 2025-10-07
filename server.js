@@ -29,7 +29,7 @@ io.on("connection", (socket) => {
 
     socket.join(roomId);
     console.log(`${socket.id} joined room ${roomId}`);
-console.log("sanhtosh");
+
     if (!rooms[roomId]) rooms[roomId] = { offers: [] };
 
     // Send existing users
@@ -122,4 +122,5 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`Signaling server running on :${PORT}`)
 );
+
 
