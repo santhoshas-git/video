@@ -22,7 +22,7 @@ rooms = {
 
 io.on("connection", (socket) => {
   console.log("socket connected:", socket.id);
-  console.log("hello");
+  console.log("testing");
   // -------- JOIN ROOM --------
   socket.on("join-room", (roomId) => {
     if (!roomId || roomId.trim() === "") return;
