@@ -26,7 +26,7 @@ io.on("connection", (socket) => {
   // -------- JOIN ROOM --------
   socket.on("join-room", (roomId) => {
     if (!roomId || roomId.trim() === "") return;
-  console.log("peter");
+
     socket.join(roomId);
     console.log(`${socket.id} joined room ${roomId}`);
 
@@ -38,11 +38,9 @@ io.on("connection", (socket) => {
     socket.emit("all-users", { users: others });
 
     // 🔑 Replay all stored offers (camera/screen) to the late joiner
-    if (rooms[roomId].offers.length > 0) {
-      rooms[roomId].offers.forEach((offer) => {
-        socket.emit("offer", offer);
-      });
-    }
+    rooms[roomId].offers.forEach((offer) => {
+      socket.emit("offer", { ...offer, to: socket.id });
+    });
 
     // Notify others
     socket.to(roomId).emit("user-joined", { id: socket.id });
@@ -64,10 +62,12 @@ io.on("connection", (socket) => {
       rooms[roomId].offers.push({ from: socket.id, sdp, streamType });
     }
 
+    const offerPayload = { from: socket.id, sdp, streamType };
+
     if (to) {
-      io.to(to).emit("offer", { from: socket.id, sdp, streamType });
+      io.to(to).emit("offer", { ...offerPayload, to });
     } else {
-      socket.to(roomId).emit("offer", { from: socket.id, sdp, streamType });
+      socket.to(roomId).emit("offer", offerPayload);
     }
   });
 
@@ -91,6 +91,9 @@ io.on("connection", (socket) => {
       rooms[roomId].offers = rooms[roomId].offers.filter(
         (o) => o.from !== socket.id
       );
+      if (rooms[roomId].offers.length === 0) {
+        delete rooms[roomId];
+      }
     }
 
     console.log(`${socket.id} left room ${roomId}`);
@@ -106,6 +109,9 @@ io.on("connection", (socket) => {
         rooms[roomId].offers = rooms[roomId].offers.filter(
           (o) => o.from !== socket.id
         );
+        if (rooms[roomId].offers.length === 0) {
+          delete rooms[roomId];
+        }
       }
     }
     console.log("socket disconnected:", socket.id);
@@ -116,6 +122,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`Signaling server running on :${PORT}`)
 );
-
-
-
