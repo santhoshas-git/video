@@ -91,19 +91,19 @@ io.on("connection", (socket) => {
   });
 
   // -------- LEAVE --------
-  socket.on("leave-room", (roomId) => {
-    socket.leave(roomId);
-    socket.to(roomId).emit("user-left", { id: socket.id });
+    socket.on("leave-room", (roomId) => {
+      socket.leave(roomId);
+      socket.to(roomId).emit("user-left", { id: socket.id });
 
-    // Remove stored offers for this user
-    if (rooms[roomId]) {
-      rooms[roomId].offers = rooms[roomId].offers.filter(
-        (o) => o.from !== socket.id
-      );
-    }
+      // Remove stored offers for this user from all rooms
+      for (const rId in rooms) {
+        rooms[rId].offers = rooms[rId].offers.filter(
+          (o) => o.from !== socket.id
+        );
+      }
 
-    console.log(`${socket.id} left room ${roomId}`);
-  });
+      console.log(`${socket.id} left room ${roomId}`);
+    });
 
   // -------- DISCONNECT --------
   socket.on("disconnect", () => {
